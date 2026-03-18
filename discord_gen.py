@@ -6,7 +6,7 @@ Educational purposes only.
 import asyncio
 import random
 import string
-from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
+from playwright.async_api import async_playwright
 from colorama import Fore
 
 # Random username word banks
@@ -31,7 +31,7 @@ def generate_username() -> str:
 
 
 class DiscordGenerator:
-    """Automates Discord account registration with headed Playwright browser.
+    """Automates Discord account registration with a headed Playwright browser.
 
     The browser is intentionally left visible so the operator can solve any
     hCaptcha challenge via the Codespace preview tab.
@@ -47,6 +47,12 @@ class DiscordGenerator:
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
+
+    @property
+    def context(self):
+        """Expose the browser context so other modules (e.g. GmailVerifier)
+        can open new pages inside the same browser window."""
+        return self._context
 
     async def init(self) -> None:
         """Launch a headed Chromium browser."""
@@ -84,21 +90,51 @@ class DiscordGenerator:
     # Account creation
     # ------------------------------------------------------------------
 
-    async def create_account(self, email: str, password: str) -> dict:
-        """Attempt to register one Discord account.
+    async def create_account(
+        self, email: str, password: str, verifier=None
+    ) -> dict:
+        """Register one Discord account and optionally verify it via Gmail.
+
+        Parameters
+        ----------
+        email:    Registration email (a Gmail + alias).
+        password: Password for the new Discord account.
+        verifier: Optional ``GmailVerifier`` instance.  When provided, the
+                  method automatically (or manually) verifies the account after
+                  a successful registration.
 
         Returns a dict with keys:
-            success  – bool
-            email    – str
-            username – str
-            note     – str (optional extra info)
-            error    – str (only when success is False)
+            success   – bool
+            email     – str
+            username  – str
+            token     – str | None   (Discord auth token)
+            verified  – bool         (True if email was verified)
+            note      – str          (optional extra info)
+            error     – str          (only when success is False)
         """
         if self._context is None:
             raise RuntimeError("Call init() before create_account().")
 
         username = generate_username()
         page = await self._context.new_page()
+
+        # Capture the Discord auth token from the /auth/register API response
+        captured_token: list[str] = []
+
+        async def _on_response(response) -> None:
+            if (
+                "/api/v" in response.url
+                and "/auth/register" in response.url
+                and response.status == 200
+            ):
+                try:
+                    data = await response.json()
+                    if isinstance(data, dict) and "token" in data:
+                        captured_token.append(data["token"])
+                except Exception:  # noqa: BLE001
+                    pass
+
+        page.on("response", _on_response)
 
         try:
             print(Fore.CYAN + "  → Navigating to Discord registration page…")
@@ -125,26 +161,45 @@ class DiscordGenerator:
             await _fill_date_of_birth(page)
 
             # ---- submit ----
-            submit = page.locator('button[type="submit"]')
-            await submit.click()
+            await page.locator('button[type="submit"]').click()
 
             # ---- wait: captcha, email-verification page, or channel view ----
             print(
                 Fore.YELLOW
-                + "  → If a CAPTCHA appears in the browser, please solve it in the "
-                + "Codespace preview tab, then wait…"
+                + "  → If a CAPTCHA appears, solve it in the browser / Codespace"
+                + " preview tab, then wait…"
             )
 
-            result = await _wait_for_outcome(page)
-            result["email"] = email
-            result["username"] = username
-            return result
+            reg_result = await _wait_for_outcome(page)
+
+            # ---- try localStorage fallback if network hook missed ----
+            token = captured_token[0] if captured_token else None
+            if not token:
+                token = await _token_from_localstorage(page)
+
+            reg_result.update(
+                {
+                    "email": email,
+                    "username": username,
+                    "token": token,
+                    "verified": False,
+                }
+            )
+
+            # ---- Gmail verification ----
+            if reg_result["success"] and verifier is not None:
+                verified = await verifier.verify_discord_account(email)
+                reg_result["verified"] = verified
+
+            return reg_result
 
         except Exception as exc:  # noqa: BLE001
             return {
                 "success": False,
                 "email": email,
                 "username": username,
+                "token": None,
+                "verified": False,
                 "error": str(exc),
             }
         finally:
@@ -158,7 +213,6 @@ class DiscordGenerator:
 
 async def _fill_date_of_birth(page) -> None:
     """Select a fixed date-of-birth (15 Jan 2000 → 25 years old)."""
-    # Month selector (Discord uses a react-select or plain selects – handle both)
     month_input = page.locator('input[placeholder="Month"]')
     day_input = page.locator('input[placeholder="Day"]')
     year_input = page.locator('input[placeholder="Year"]')
@@ -167,7 +221,6 @@ async def _fill_date_of_birth(page) -> None:
         await month_input.fill("January")
         await month_input.press("Enter")
     else:
-        # Some versions expose <select> elements
         month_sel = page.locator('select[id="month"]')
         if await month_sel.count() > 0:
             await month_sel.select_option(label="January")
@@ -188,17 +241,16 @@ async def _fill_date_of_birth(page) -> None:
 
 
 async def _wait_for_outcome(page, timeout: int = 180_000) -> dict:
-    """Block until Discord sends us somewhere useful (or we time out).
+    """Block until Discord navigates away from the register page (or times out).
 
-    Returns a partial result dict (without email/username, added by caller).
+    Returns a partial result dict (email/username/token added by caller).
     """
     try:
-        # Give the user up to 3 minutes to solve any captcha
         await asyncio.wait_for(
             _poll_for_success(page),
             timeout=timeout / 1000,
         )
-        return {"success": True, "note": "Account created – check your inbox to verify."}
+        return {"success": True, "note": "Account created."}
     except asyncio.TimeoutError:
         return {
             "success": False,
@@ -207,14 +259,26 @@ async def _wait_for_outcome(page, timeout: int = 180_000) -> dict:
 
 
 async def _poll_for_success(page) -> None:
-    """Keep checking the page URL/content until we reach a success state."""
+    """Poll until we detect a successful registration state."""
     while True:
         url = page.url
-        # Redirected into the app proper
         if "/channels/" in url or "/app" in url:
             return
-        # Email verification screen
         content = await page.content()
         if "Check your email" in content or "verify" in url.lower():
             return
         await asyncio.sleep(1)
+
+
+async def _token_from_localstorage(page) -> str | None:
+    """Try to read the Discord token directly from the page's localStorage."""
+    try:
+        raw = await page.evaluate(
+            "() => window.localStorage.getItem('token')"
+        )
+        if raw:
+            # Discord stores it as a JSON string: '"actual.token.here"'
+            return raw.strip('"')
+    except Exception:  # noqa: BLE001
+        pass
+    return None

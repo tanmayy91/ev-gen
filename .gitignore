@@ -1,0 +1,13 @@
+# Generated output files – contain sensitive credentials, never commit
+tokens.txt
+acc.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Playwright browser cache
+/ms-playwright/

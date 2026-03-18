@@ -6,27 +6,39 @@ Usage:
     python main.py
 
 The script asks for:
-  1. Your Gmail address
-  2. A password for the new Discord accounts
-  3. How many accounts to create
+  1. Your Gmail address  (used for account registration + auto-verification)
+  2. Your Gmail password (used to log into Gmail to click the verify link)
+  3. A password for the new Discord accounts
+  4. How many accounts to create
 
-It then uses Gmail's + alias trick to derive unique registration addresses:
-    e.g.  tanmayyyy38@gmail.com  →  tanmayyyy38+1@gmail.com,
-                                    tanmayyyy38+2@gmail.com, …
+Gmail's + alias trick is used to generate unique registration addresses:
+    tanmayyyy38@gmail.com  →  tanmayyyy38+1@gmail.com,
+                               tanmayyyy38+2@gmail.com, …
 
-A headed Chromium browser is opened for each account so you can solve any
-hCaptcha challenge that Discord presents via the Codespace preview tab.
+A headed Chromium browser opens so you can solve any CAPTCHA manually.
+After each registration the script auto-verifies via Gmail; if that fails
+it pauses and asks you to verify manually in the browser, then press Enter.
+
+Output files (appended on each run):
+    tokens.txt  – one Discord token per line
+    acc.txt     – email:password:token per line
 """
 
 import asyncio
 import getpass
 import sys
+from pathlib import Path
 
-from colorama import Fore, Style, init
+from colorama import Fore, init
 
 from discord_gen import DiscordGenerator
+from gmail_verifier import GmailVerifier
 
 init(autoreset=True)
+
+TOKENS_FILE = Path("tokens.txt")
+ACCOUNTS_FILE = Path("acc.txt")
+
 
 # ---------------------------------------------------------------------------
 # Email helpers
@@ -77,28 +89,38 @@ def print_banner() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Main flow
+# Input collection
 # ---------------------------------------------------------------------------
 
 
-def collect_inputs() -> tuple[str, str, int]:
-    """Interactively collect gmail, password, and count from the operator."""
+def collect_inputs() -> tuple[str, str, str, int]:
+    """Return (gmail, gmail_password, discord_password, count)."""
 
-    # Gmail
+    # Gmail address
     while True:
         gmail = prompt("Enter your Gmail address: ")
         if gmail.endswith("@gmail.com"):
             break
         print(Fore.RED + "  ✗ Please enter a valid @gmail.com address.")
 
-    # Password
+    # Gmail password (for inbox verification)
+    print(
+        Fore.CYAN
+        + "  (Gmail password is used only to open your inbox and click the\n"
+        + "   Discord verification link — it is never stored or sent anywhere.)"
+    )
+    gmail_password = getpass.getpass(Fore.WHITE + "Enter your Gmail password: ")
+
+    # Discord account password
     while True:
-        password = getpass.getpass(Fore.WHITE + "Enter password for new Discord accounts: ")
-        if len(password) >= 8:
+        discord_password = getpass.getpass(
+            Fore.WHITE + "Enter password for new Discord accounts: "
+        )
+        if len(discord_password) >= 8:
             break
         print(Fore.RED + "  ✗ Password must be at least 8 characters.")
 
-    # Count
+    # Number of accounts
     while True:
         raw = prompt("How many accounts to create? (1–50): ")
         try:
@@ -109,13 +131,52 @@ def collect_inputs() -> tuple[str, str, int]:
         except ValueError:
             print(Fore.RED + "  ✗ Please enter a whole number between 1 and 50.")
 
-    return gmail, password, count
+    return gmail, gmail_password, discord_password, count
 
 
-async def run(aliases: list[str], password: str) -> None:
-    """Create all accounts sequentially and print a summary."""
+# ---------------------------------------------------------------------------
+# File saving
+# ---------------------------------------------------------------------------
+
+
+def save_results(results: list[dict], discord_password: str) -> None:
+    """Append successful results to tokens.txt and acc.txt."""
+    successful = [r for r in results if r.get("success") and r.get("token")]
+    if not successful:
+        return
+
+    with TOKENS_FILE.open("a", encoding="utf-8") as tf:
+        for r in successful:
+            tf.write(r["token"] + "\n")
+
+    with ACCOUNTS_FILE.open("a", encoding="utf-8") as af:
+        for r in successful:
+            af.write(f"{r['email']}:{discord_password}:{r['token']}\n")
+
+    print(
+        Fore.GREEN
+        + f"\n  💾 Saved {len(successful)} token(s) to "
+        + f"{TOKENS_FILE}  and  {ACCOUNTS_FILE}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Main async runner
+# ---------------------------------------------------------------------------
+
+
+async def run(
+    aliases: list[str],
+    gmail: str,
+    gmail_password: str,
+    discord_password: str,
+) -> list[dict]:
+    """Create all accounts sequentially, verify each, and return results."""
     generator = DiscordGenerator()
     await generator.init()
+
+    # Build the verifier once and reuse it (stays logged into Gmail)
+    verifier = GmailVerifier(generator.context, gmail, gmail_password)
 
     results: list[dict] = []
     total = len(aliases)
@@ -123,48 +184,48 @@ async def run(aliases: list[str], password: str) -> None:
     try:
         for idx, email in enumerate(aliases, start=1):
             print(Fore.CYAN + f"\n[{idx}/{total}] Creating account → {email}")
-            result = await generator.create_account(email, password)
+            result = await generator.create_account(
+                email, discord_password, verifier=verifier
+            )
             results.append(result)
 
             if result["success"]:
-                note = result.get("note", "")
+                token_display = (
+                    result["token"][:20] + "…"
+                    if result.get("token")
+                    else "not captured"
+                )
+                verified_tag = (
+                    Fore.GREEN + "verified ✓"
+                    if result.get("verified")
+                    else Fore.YELLOW + "unverified"
+                )
                 print(
                     Fore.GREEN
-                    + f"  ✓ Success! Username: {result['username']}"
-                    + (f"  ({note})" if note else "")
+                    + f"  ✓ Created  username={result['username']}"
+                    + f"  token={token_display}"
+                    + f"  [{verified_tag}{Fore.GREEN}]"
                 )
             else:
-                print(Fore.RED + f"  ✗ Failed: {result.get('error', 'unknown error')}")
+                print(
+                    Fore.RED
+                    + f"  ✗ Failed: {result.get('error', 'unknown error')}"
+                )
 
     finally:
         await generator.close()
 
-    # Summary
-    successful = [r for r in results if r["success"]]
-    failed = [r for r in results if not r["success"]]
+    return results
 
-    print(Fore.CYAN + "\n" + "=" * 55)
-    print(Fore.CYAN + "  Results")
-    print(Fore.CYAN + "=" * 55)
-    print(Fore.GREEN + f"  ✓ Successful : {len(successful)}")
-    print(Fore.RED + f"  ✗ Failed     : {len(failed)}")
 
-    if successful:
-        print(Fore.WHITE + "\n  Created accounts:")
-        for r in successful:
-            print(Fore.GREEN + f"    • {r['email']}  (username: {r['username']})")
-
-    if failed:
-        print(Fore.WHITE + "\n  Failed accounts:")
-        for r in failed:
-            print(Fore.RED + f"    • {r['email']}  – {r.get('error', '?')}")
-
-    print()
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 
 def main() -> None:
     print_banner()
-    gmail, password, count = collect_inputs()
+    gmail, gmail_password, discord_password, count = collect_inputs()
 
     aliases = build_aliases(gmail, count)
 
@@ -180,10 +241,42 @@ def main() -> None:
     print(
         Fore.CYAN
         + "\n  Starting browser… open the Codespace 'Ports' / preview tab"
-        + " if you need to interact with a CAPTCHA.\n"
+        + " if you need to interact with a CAPTCHA or Gmail 2FA.\n"
     )
 
-    asyncio.run(run(aliases, password))
+    results = asyncio.run(run(aliases, gmail, gmail_password, discord_password))
+
+    # ---- persist results ----
+    save_results(results, discord_password)
+
+    # ---- print summary ----
+    successful = [r for r in results if r["success"]]
+    failed = [r for r in results if not r["success"]]
+
+    print(Fore.CYAN + "\n" + "=" * 55)
+    print(Fore.CYAN + "  Summary")
+    print(Fore.CYAN + "=" * 55)
+    print(Fore.GREEN + f"  ✓ Successful : {len(successful)}")
+    print(Fore.RED + f"  ✗ Failed     : {len(failed)}")
+
+    if successful:
+        print(Fore.WHITE + "\n  Created accounts:")
+        for r in successful:
+            verified = "✓ verified" if r.get("verified") else "⚠ unverified"
+            print(
+                Fore.GREEN
+                + f"    • {r['email']}  username={r['username']}  [{verified}]"
+            )
+
+    if failed:
+        print(Fore.WHITE + "\n  Failed accounts:")
+        for r in failed:
+            print(Fore.RED + f"    • {r['email']}  – {r.get('error', '?')}")
+
+    print(
+        Fore.CYAN
+        + f"\n  Output files:  {TOKENS_FILE}  |  {ACCOUNTS_FILE}\n"
+    )
 
 
 if __name__ == "__main__":
