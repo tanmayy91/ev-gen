@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/terminal_bg">
+
+    <!-- Status bar at top -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:background="@color/terminal_input_bg"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:textColor="@color/terminal_green"
+        android:fontFamily="monospace"
+        android:textSize="12sp"
+        android:text="Initialising…"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <!-- WebView fills middle -->
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/tvStatus"
+        android:layout_above="@id/btnViewResults" />
+
+    <!-- "All done" View Results button (hidden until all accounts processed) -->
+    <Button
+        android:id="@+id/btnViewResults"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:text="@string/btn_all_done"
+        android:textColor="@color/terminal_bg"
+        android:backgroundTint="@color/terminal_green"
+        android:fontFamily="monospace"
+        android:visibility="gone" />
+
+    <!-- Floating "Verification done" button -->
+    <Button
+        android:id="@+id/btnVerificationDone"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="72dp"
+        android:text="@string/btn_verification_done"
+        android:textColor="@color/terminal_bg"
+        android:backgroundTint="@color/terminal_yellow"
+        android:fontFamily="monospace"
+        android:paddingHorizontal="24dp"
+        android:elevation="8dp"
+        android:visibility="gone" />
+
+</RelativeLayout>
