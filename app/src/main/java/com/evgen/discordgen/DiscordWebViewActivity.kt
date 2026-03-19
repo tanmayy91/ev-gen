@@ -105,11 +105,11 @@ class DiscordWebViewActivity : AppCompatActivity() {
 
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 jsInjected = false
-                // Detect navigation away from /register – save token
+                // Detect navigation away from /register – save with note if token was missed
                 if (!url.contains("/register") && capturedToken == null && !waitingForVerification) {
                     val alias = aliases.getOrNull(currentIndex) ?: return
                     log("Navigated away from /register – token not captured for $alias")
-                    saveAccount(alias, "token_not_captured")
+                    // Do NOT save to tokens.txt/acc.txt without a real token; just log and proceed
                 }
             }
 
@@ -211,14 +211,18 @@ class DiscordWebViewActivity : AppCompatActivity() {
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  function tryFill() {
+  function tryFill(attempt) {
+    if (attempt > 20) {
+      AndroidBridge.onLog('Form not found after 20 attempts – giving up');
+      return;
+    }
     var emailEl = document.querySelector('input[name="email"]');
     var passwordEl = document.querySelector('input[name="password"]');
     var usernameEl = document.querySelector('input[name="global_name"]') ||
                      document.querySelector('input[name="username"]');
     if (!emailEl || !passwordEl || !usernameEl) {
-      AndroidBridge.onLog('Form not ready yet, retrying…');
-      setTimeout(tryFill, 1000);
+      AndroidBridge.onLog('Form not ready yet, retrying… (' + attempt + '/20)');
+      setTimeout(function() { tryFill(attempt + 1); }, 1000);
       return;
     }
     setNativeValue(emailEl, '$emailEscaped');
@@ -254,7 +258,7 @@ class DiscordWebViewActivity : AppCompatActivity() {
     AndroidBridge.onLog('fetch interceptor installed');
   }
 
-  setTimeout(tryFill, 1500);
+  setTimeout(function() { tryFill(1); }, 1500);
 })();
         """.trimIndent()
 

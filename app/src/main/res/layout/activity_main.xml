@@ -57,7 +57,7 @@
             android:layout_height="wrap_content"
             android:hint="@string/hint_gmail_password"
             app:boxBackgroundColor="@color/terminal_input_bg"
-            app:passwordToggleEnabled="true"
+            app:endIconMode="password_toggle"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_marginBottom="12dp">
             <com.google.android.material.textfield.TextInputEditText
@@ -75,7 +75,7 @@
             android:layout_height="wrap_content"
             android:hint="@string/hint_discord_password"
             app:boxBackgroundColor="@color/terminal_input_bg"
-            app:passwordToggleEnabled="true"
+            app:endIconMode="password_toggle"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_marginBottom="12dp">
             <com.google.android.material.textfield.TextInputEditText

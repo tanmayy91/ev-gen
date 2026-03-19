@@ -12,13 +12,20 @@ import com.google.android.material.textfield.TextInputEditText
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        // Static log buffer so DiscordWebViewActivity can append messages
+        // Static log buffer so DiscordWebViewActivity can append messages.
+        // Capped at MAX_LOG_LINES to prevent unbounded memory growth.
+        private const val MAX_LOG_LINES = 500
         val logLines = mutableListOf<String>()
         var logCallback: ((String) -> Unit)? = null
 
         fun postLog(message: String) {
             logLines.add(message)
+            if (logLines.size > MAX_LOG_LINES) logLines.removeAt(0)
             logCallback?.invoke(message)
+        }
+
+        fun clearLog() {
+            logLines.clear()
         }
     }
 
@@ -93,6 +100,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val aliases = AliasGenerator.generateAliases(gmail, count)
+        clearLog()
         postLog("Generated $count alias(es). Starting…")
 
         val intent = Intent(this, DiscordWebViewActivity::class.java).apply {
