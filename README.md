@@ -6,16 +6,49 @@
 
 ---
 
+## 📱 Android APK — Download
+
+The GitHub Actions workflow automatically builds a debug APK on every push.
+
+### How to get the APK
+
+1. Go to the **Actions** tab of this repository:  
+   `https://github.com/tanmayy91/ev-gen/actions`
+2. Click the latest **"Build APK"** workflow run.
+3. If the run shows **"Action required"**, click **"Approve and run"** (repo owner only — required once for new workflows).
+4. Wait for the build to finish (≈ 5–8 minutes).
+5. Under **Artifacts**, download **`DiscordGen-debug`** (a `.zip` containing `app-debug.apk`).
+6. Unzip and install the APK on your Android phone (enable *Install unknown apps* in Settings → Security).
+
+> Artifacts are kept for **90 days**.
+
+---
+
 ## Features
+
+### Android app (APK)
+
+| Feature | Details |
+|---|---|
+| **Terminal-style input** | Enter Gmail address, Gmail password, Discord password, and account count (1–50) |
+| **Gmail + alias trick** | Generates unique 4-char random aliases: `user+a3kj@gmail.com`, `user+bq9x@gmail.com`, … |
+| **Built-in browser** | Full-screen WebView opens `discord.com/register` directly in the app |
+| **Auto form fill** | JS injection fills email, username, password, and date of birth automatically |
+| **Manual CAPTCHA** | hCaptcha is left for the user to solve manually in the in-app browser |
+| **Email verification** | After registration, the browser opens Gmail so you can verify the email, then tap "Verification Done → Next Account" |
+| **Token capture** | Intercepts Discord's `/auth/register` fetch response to extract the auth token |
+| **Download screen** | View `tokens.txt` and `acc.txt` content inside the app; share/download via any Android app |
+| **Live progress log** | Scrollable terminal-style log at the bottom of the main screen |
+
+### Python CLI (Codespace / desktop)
 
 | Feature | Details |
 |---|---|
 | **Interactive CLI** | Prompts for Gmail, Gmail password, Discord password, and account count |
-| **Gmail + alias trick** | Derives unique registration addresses from one inbox (`user+1@gmail.com`, `user+2@gmail.com`, …) |
+| **Gmail + alias trick** | Derives unique registration addresses from one inbox |
 | **Manual CAPTCHA solving** | Headed browser stays visible — solve hCaptcha in the Codespace preview tab |
 | **Auto Gmail verification** | Logs into Gmail, finds the Discord verification email, and clicks the link automatically |
-| **Manual verification fallback** | If auto-verification fails, the script pauses and guides you to verify manually, then press Enter |
-| **Token capture** | Intercepts the Discord `/auth/register` API response to extract the auth token (localStorage fallback included) |
+| **Token capture** | Intercepts the Discord `/auth/register` API response to extract the auth token |
 | **Output files** | `tokens.txt` (one token per line) and `acc.txt` (`email:password:token` per line) |
 
 ---
@@ -146,12 +179,24 @@ Auto-verify (Gmail Playwright login → inbox search → click link)
 
 ```
 ev-gen/
-├── main.py           # Entry point – CLI, alias generation, file saving
+├── app/                          # Android app (Kotlin)
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       ├── java/com/evgen/discordgen/
+│       │   ├── MainActivity.kt           # Input UI + live log
+│       │   ├── DiscordWebViewActivity.kt # Built-in browser + token capture
+│       │   ├── AliasGenerator.kt         # Gmail+ alias generation
+│       │   ├── TokenStore.kt             # tokens.txt / acc.txt file I/O
+│       │   └── DownloadActivity.kt       # View & share output files
+│       └── res/
+│           ├── layout/                   # XML layouts
+│           ├── values/                   # Strings, colors, themes
+│           └── xml/file_provider_paths.xml
+├── .github/workflows/build-apk.yml  # CI: builds & uploads debug APK
+├── main.py           # Python CLI – Entry point
 ├── discord_gen.py    # Playwright registration + token extraction
 ├── gmail_verifier.py # Gmail login + auto-verify + manual fallback
 ├── requirements.txt  # Python dependencies
-├── tokens.txt        # (generated) one token per line
-├── acc.txt           # (generated) email:password:token per line
 └── README.md
 ```
 

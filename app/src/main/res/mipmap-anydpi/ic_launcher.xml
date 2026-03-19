@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy flat launcher icon for API 24–25 (API 26+ uses the adaptive icon in mipmap-anydpi-v26) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/terminal_bg" />
+    <item android:drawable="@drawable/ic_launcher_fg" />
+</layer-list>

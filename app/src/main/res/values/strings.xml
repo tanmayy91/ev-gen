@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DiscordGen</string>
+    <string name="hint_gmail">Gmail address (e.g. user@gmail.com)</string>
+    <string name="hint_gmail_password">Gmail password</string>
+    <string name="hint_discord_password">Discord account password (min 8 chars)</string>
+    <string name="hint_count">Number of accounts (1–50)</string>
+    <string name="btn_start">▶ Start</string>
+    <string name="btn_view_results">📂 View Results</string>
+    <string name="btn_all_done">✅ All Accounts Created – View Results</string>
+    <string name="btn_verification_done">✉ Verification Done → Next Account</string>
+    <string name="btn_share_tokens">⬆ Share / Download tokens.txt</string>
+    <string name="btn_share_accounts">⬆ Share / Download acc.txt</string>
+    <string name="btn_refresh">↻ Refresh</string>
+    <string name="btn_back">← Back</string>
+    <string name="title_download">Results</string>
+</resources>

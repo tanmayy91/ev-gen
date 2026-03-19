@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/terminal_bg"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/title_download"
+        android:textColor="@color/terminal_green"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:gravity="center"
+        android:paddingBottom="12dp" />
+
+    <!-- tokens.txt section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="tokens.txt"
+            android:textColor="@color/terminal_yellow"
+            android:fontFamily="monospace"
+            android:textSize="12sp"
+            android:paddingBottom="4dp" />
+
+        <ScrollView
+            android:id="@+id/scrollTokens"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@color/terminal_input_bg"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/tvTokens"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/terminal_green"
+                android:fontFamily="monospace"
+                android:textSize="10sp"
+                android:text="(empty)" />
+        </ScrollView>
+
+        <Button
+            android:id="@+id/btnShareTokens"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_share_tokens"
+            android:textColor="@color/terminal_bg"
+            android:backgroundTint="@color/terminal_green"
+            android:fontFamily="monospace"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+
+    <!-- acc.txt section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="acc.txt"
+            android:textColor="@color/terminal_yellow"
+            android:fontFamily="monospace"
+            android:textSize="12sp"
+            android:paddingBottom="4dp" />
+
+        <ScrollView
+            android:id="@+id/scrollAccounts"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@color/terminal_input_bg"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/tvAccounts"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/terminal_green"
+                android:fontFamily="monospace"
+                android:textSize="10sp"
+                android:text="(empty)" />
+        </ScrollView>
+
+        <Button
+            android:id="@+id/btnShareAccounts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_share_accounts"
+            android:textColor="@color/terminal_bg"
+            android:backgroundTint="@color/terminal_green"
+            android:fontFamily="monospace"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+
+    <!-- Bottom buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnRefresh"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/btn_refresh"
+            android:textColor="@color/terminal_green"
+            android:backgroundTint="@color/terminal_input_bg"
+            android:fontFamily="monospace"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnBack"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/btn_back"
+            android:textColor="@color/terminal_green"
+            android:backgroundTint="@color/terminal_input_bg"
+            android:fontFamily="monospace" />
+    </LinearLayout>
+
+</LinearLayout>
